@@ -22,6 +22,7 @@
                 </Menu>
                   <Menu mnemonicParsing="false" text="Operations">
                     <items>
+                        <MenuItem mnemonicParsing="false" onAction="#handleBoxBlurAction" text="Box Blur" />
                       <MenuItem mnemonicParsing="false" onAction="#handleRGBtoGrayscaleAction" text="RGB to Grayscale" />
                         <MenuItem mnemonicParsing="false" onAction="#handleRotateClockwiseAction" text="Rotate Clockwise" />
                     </items>
