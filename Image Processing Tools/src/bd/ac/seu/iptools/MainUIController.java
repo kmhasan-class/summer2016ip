@@ -115,6 +115,62 @@ public class MainUIController implements Initializable {
 
     @FXML
     private void handleBoxBlurAction(ActionEvent event) {
+        // Implemented by Kazi Fazle Azim Rabi
+        System.out.println("inside");
+
+        outputImage = new BufferedImage(inputImage.getWidth(), inputImage.getHeight(), inputImage.getType());
+
+        int blurKernel[][] = {
+            {1, 1, 1},
+            {1, 1, 1},
+            {1, 1, 1}
+        };
+
+        int offset = blurKernel.length / 2;
+
+        for (int c = offset; c < inputImage.getWidth() - offset; c++) {
+            for (int r = offset; r < inputImage.getHeight() - offset; r++) {
+                int sumRed = 0;
+                int sumGreen = 0;
+                int sumBlue = 0;
+                for (int dx = -offset; dx <= +offset; dx++) {
+                    for (int dy = -offset; dy <= +offset; dy++) {
+                        int newc = c + dx;
+                        int newr = r + dy;
+
+                        int newrgb = inputImage.getRGB(newc, newr);
+                        int newrr = (newrgb >> 16) & 0xFF;
+                        int newgg = (newrgb >> 8) & 0xFF;
+                        int newbb = (newrgb >> 0) & 0xFF;
+
+                        int multipliedValue;
+                        multipliedValue = blurKernel[dy + offset][dx + offset] * newrr;
+                        sumRed += multipliedValue;
+                        multipliedValue = blurKernel[dy + offset][dx + offset] * newgg;
+                        sumGreen += multipliedValue;
+                        multipliedValue = blurKernel[dy + offset][dx + offset] * newbb;
+                        sumBlue += multipliedValue;
+                    }
+                }
+
+                sumRed /= 9;
+                sumGreen /= 9;
+                sumBlue /= 9;
+
+                int rgb = (sumRed << 16) | (sumGreen << 8) | (sumBlue);
+                outputImage.setRGB(c, r, rgb);
+                // DIVIDE the sum values by 9
+                // pack the new RGBs into one integer
+                // put the integer in the new image
+            }
+        }
+        System.out.println("done");
+        displayImage(outputImage, rightPane);
+    }
+
+    /*
+    @FXML
+    private void handleBoxBlurAction(ActionEvent event) {
         outputImage = new BufferedImage(inputImage.getWidth(), inputImage.getHeight(),
                 inputImage.getType());
 
@@ -157,4 +213,5 @@ public class MainUIController implements Initializable {
         }
         displayImage(outputImage, rightPane);
     }
+     */
 }
