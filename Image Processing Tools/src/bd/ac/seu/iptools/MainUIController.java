@@ -121,9 +121,15 @@ public class MainUIController implements Initializable {
         outputImage = new BufferedImage(inputImage.getWidth(), inputImage.getHeight(), inputImage.getType());
 
         int blurKernel[][] = {
-            {1, 1, 1},
-            {1, 1, 1},
-            {1, 1, 1}
+/*
+            {-1, 0, +1},
+            {-1, 0, +1},
+            {-1, 0, +1}
+*/
+            {-1, -1, -1},
+            {0, 0, 0},
+            {+1, +1, +1}
+                
         };
 
         int offset = blurKernel.length / 2;
@@ -152,11 +158,11 @@ public class MainUIController implements Initializable {
                         sumBlue += multipliedValue;
                     }
                 }
-
-                sumRed /= 9;
-                sumGreen /= 9;
-                sumBlue /= 9;
-
+/*
+                sumRed /= 982;
+                sumGreen /= 982;
+                sumBlue /= 982;
+*/
                 int rgb = (sumRed << 16) | (sumGreen << 8) | (sumBlue);
                 outputImage.setRGB(c, r, rgb);
                 // DIVIDE the sum values by 9
