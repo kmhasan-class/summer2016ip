@@ -75,9 +75,8 @@ public class MainUIController implements Initializable {
         }
     }
 
-    @FXML
-    private void handleRGBtoGrayscaleAction(ActionEvent event) {
-        outputImage = new BufferedImage(inputImage.getWidth(), inputImage.getHeight(), inputImage.getType());
+    private BufferedImage toGrayScale(BufferedImage rgbImage) {
+        BufferedImage grayImage = new BufferedImage(inputImage.getWidth(), inputImage.getHeight(), BufferedImage.TYPE_BYTE_GRAY);
         for (int c = 0; c < inputImage.getWidth(); c++) {
             for (int r = 0; r < inputImage.getHeight(); r++) {
                 int rgb = inputImage.getRGB(c, r);
@@ -88,9 +87,15 @@ public class MainUIController implements Initializable {
                 int intensity = (int) (rr * 0.72 + gg * 0.21 + bb * 0.07);
 
                 rgb = (intensity << 16) | (intensity << 8) | intensity;
-                outputImage.setRGB(c, r, rgb);
+                grayImage.setRGB(c, r, rgb);
             }
         }
+        return grayImage;
+    }
+    
+    @FXML
+    private void handleRGBtoGrayscaleAction(ActionEvent event) {
+        outputImage = toGrayScale(inputImage);
         displayImage(outputImage, rightPane);
     }
 
