@@ -74,6 +74,16 @@ public class FXMLDocumentController implements Initializable {
 
                 if (!frame.empty()) {
                     Imgproc.cvtColor(frame, frame, Imgproc.COLOR_BGR2GRAY);
+                    
+                    for (int r = 300; r < 400; r++)
+                        for (int c = 300; c < 400; c++) {
+                            double value[] = frame.get(r, c);
+                            double newValue = value[0] * 1.25;
+                            if (newValue > 255)
+                                newValue = 255;
+                            frame.put(r, c, newValue);
+                        }
+                    
                     MatOfByte buffer = new MatOfByte();
                     Imgcodecs.imencode(".png", frame, buffer);
                     imageToShow = new Image(new ByteArrayInputStream(buffer.toArray()));
