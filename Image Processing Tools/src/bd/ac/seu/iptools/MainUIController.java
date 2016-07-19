@@ -90,9 +90,34 @@ public class MainUIController implements Initializable {
                 grayImage.setRGB(c, r, rgb);
             }
         }
+        grayImage = otsusThreshold(grayImage);
         return grayImage;
     }
-    
+
+    public BufferedImage otsusThreshold(BufferedImage grayscaleImage) {
+        BufferedImage binaryImage = new BufferedImage(inputImage.getWidth(), inputImage.getHeight(), BufferedImage.TYPE_BYTE_GRAY);
+        int frequency[] = new int[256];
+        for (int r = 0; r < grayscaleImage.getHeight(); r++) {
+            for (int c = 0; c < grayscaleImage.getWidth(); c++) {
+                int intensity = grayscaleImage.getRGB(c, r) & 0xFF;
+                frequency[intensity]++;
+            }
+        }
+
+        int threshold = 127;
+        for (int r = 0; r < grayscaleImage.getHeight(); r++) {
+            for (int c = 0; c < grayscaleImage.getWidth(); c++) {
+                int intensity = grayscaleImage.getRGB(c, r) & 0xFF;
+                if (intensity < threshold) {
+                    binaryImage.setRGB(c, r, 0);
+                } else {
+                    binaryImage.setRGB(c, r, (0xFF << 16 | 0xFF << 8 | 0xFF));
+                }
+            }
+        }
+        return binaryImage;
+    }
+
     @FXML
     private void handleRGBtoGrayscaleAction(ActionEvent event) {
         outputImage = toGrayScale(inputImage);
@@ -126,15 +151,15 @@ public class MainUIController implements Initializable {
         outputImage = new BufferedImage(inputImage.getWidth(), inputImage.getHeight(), inputImage.getType());
 
         int blurKernel[][] = {
-/*
+            /*
             {-1, 0, +1},
             {-1, 0, +1},
             {-1, 0, +1}
-*/
+             */
             {-1, -1, -1},
             {0, 0, 0},
             {+1, +1, +1}
-                
+
         };
 
         int offset = blurKernel.length / 2;
@@ -163,11 +188,11 @@ public class MainUIController implements Initializable {
                         sumBlue += multipliedValue;
                     }
                 }
-/*
+                /*
                 sumRed /= 982;
                 sumGreen /= 982;
                 sumBlue /= 982;
-*/
+                 */
                 int rgb = (sumRed << 16) | (sumGreen << 8) | (sumBlue);
                 outputImage.setRGB(c, r, rgb);
                 // DIVIDE the sum values by 9
