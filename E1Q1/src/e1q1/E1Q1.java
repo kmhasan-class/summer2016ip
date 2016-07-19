@@ -50,6 +50,8 @@ public class E1Q1 {
         
         // Finally write the output
         Imgcodecs.imwrite("output1.jpg", outputMat);
+        
+        
     }
 
     /**
