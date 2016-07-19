@@ -97,14 +97,51 @@ public class MainUIController implements Initializable {
     public BufferedImage otsusThreshold(BufferedImage grayscaleImage) {
         BufferedImage binaryImage = new BufferedImage(inputImage.getWidth(), inputImage.getHeight(), BufferedImage.TYPE_BYTE_GRAY);
         int frequency[] = new int[256];
+        double p[] = new double[frequency.length];
+        double P1[] = new double[frequency.length];
+        double m[] = new double[frequency.length];
+        double sB[] = new double[frequency.length]; // sigma square B 10.3-17
+        double mG;
+        int M = binaryImage.getWidth();
+        int N = binaryImage.getHeight();
+
         for (int r = 0; r < grayscaleImage.getHeight(); r++) {
             for (int c = 0; c < grayscaleImage.getWidth(); c++) {
                 int intensity = grayscaleImage.getRGB(c, r) & 0xFF;
                 frequency[intensity]++;
             }
         }
-
-        int threshold = 127;
+        System.out.println("Histogram done");
+        
+        // Step 1, 2 and 3
+        for (int i = 0; i < frequency.length; i++) {
+            p[i] = ((double)frequency[i]) / (M * N);
+            if (i == 0) {
+                P1[i] = p[i];
+                m[i] = i * p[i];
+            } else {
+                P1[i] = P1[i - 1] + p[i];
+                m[i] = m[i - 1] + i * p[i];
+            }
+        }
+        System.out.println("Cumulative sums done");
+        
+        // step 4
+        mG = m[m.length - 1];
+        double highestVariance = Double.MIN_VALUE;
+        int bestK = -1;
+        for (int k = 0; k < frequency.length; k++) {
+            double numerator = mG*P1[k] - m[k];
+            double denominator = P1[k] * (1 - P1[k]);
+            sB[k] = numerator * numerator / denominator;
+            if (sB[k] > highestVariance) {
+                highestVariance = sB[k];
+                bestK = k;
+            }
+        }
+        System.out.println("Calculated best K");
+        
+        int threshold = bestK;
         for (int r = 0; r < grayscaleImage.getHeight(); r++) {
             for (int c = 0; c < grayscaleImage.getWidth(); c++) {
                 int intensity = grayscaleImage.getRGB(c, r) & 0xFF;
@@ -115,6 +152,7 @@ public class MainUIController implements Initializable {
                 }
             }
         }
+        System.out.println("Applied threshold");
         return binaryImage;
     }
 
