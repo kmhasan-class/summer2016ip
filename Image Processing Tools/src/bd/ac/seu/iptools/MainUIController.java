@@ -90,7 +90,7 @@ public class MainUIController implements Initializable {
                 grayImage.setRGB(c, r, rgb);
             }
         }
-        grayImage = otsusThreshold(grayImage);
+        //grayImage = otsusThreshold(grayImage);
         return grayImage;
     }
 
@@ -112,10 +112,10 @@ public class MainUIController implements Initializable {
             }
         }
         System.out.println("Histogram done");
-        
+
         // Step 1, 2 and 3
         for (int i = 0; i < frequency.length; i++) {
-            p[i] = ((double)frequency[i]) / (M * N);
+            p[i] = ((double) frequency[i]) / (M * N);
             if (i == 0) {
                 P1[i] = p[i];
                 m[i] = i * p[i];
@@ -125,13 +125,13 @@ public class MainUIController implements Initializable {
             }
         }
         System.out.println("Cumulative sums done");
-        
+
         // step 4
         mG = m[m.length - 1];
         double highestVariance = Double.MIN_VALUE;
         int bestK = -1;
         for (int k = 0; k < frequency.length; k++) {
-            double numerator = mG*P1[k] - m[k];
+            double numerator = mG * P1[k] - m[k];
             double denominator = P1[k] * (1 - P1[k]);
             sB[k] = numerator * numerator / denominator;
             if (sB[k] > highestVariance) {
@@ -140,7 +140,7 @@ public class MainUIController implements Initializable {
             }
         }
         System.out.println("Calculated best K");
-        
+
         int threshold = bestK;
         for (int r = 0; r < grayscaleImage.getHeight(); r++) {
             for (int c = 0; c < grayscaleImage.getWidth(); c++) {
@@ -153,6 +153,24 @@ public class MainUIController implements Initializable {
             }
         }
         System.out.println("Applied threshold");
+        return binaryImage;
+    }
+
+    private BufferedImage myThreshold(BufferedImage grayscaleImage, int threshold) {
+        BufferedImage binaryImage = new BufferedImage(inputImage.getWidth(), inputImage.getHeight(), BufferedImage.TYPE_BYTE_GRAY);
+        int M = binaryImage.getWidth();
+        int N = binaryImage.getHeight();
+
+        for (int r = 0; r < grayscaleImage.getHeight(); r++) {
+            for (int c = 0; c < grayscaleImage.getWidth(); c++) {
+                int intensity = grayscaleImage.getRGB(c, r) & 0xFF;
+                if (intensity < threshold) {
+                    binaryImage.setRGB(c, r, 0);
+                } else {
+                    binaryImage.setRGB(c, r, (0xFF << 16 | 0xFF << 8 | 0xFF));
+                }
+            }
+        }
         return binaryImage;
     }
 
@@ -179,6 +197,74 @@ public class MainUIController implements Initializable {
         ImageView imageView = new ImageView(image);
         anchorPane.getChildren().removeAll();
         anchorPane.getChildren().add(imageView);
+    }
+
+    private BufferedImage applyKernel(BufferedImage image, int kernel[][]) {
+        BufferedImage outputImage;
+        outputImage = new BufferedImage(inputImage.getWidth(), inputImage.getHeight(), inputImage.getType());
+
+        int offset = kernel.length / 2;
+        int kernelSum = 0;
+        for (int r = 0; r < kernel.length; r++) {
+            for (int c = 0; c < kernel[r].length; c++) {
+                kernelSum += Math.abs(kernel[r][c]);
+            }
+        }
+
+        for (int c = offset; c < inputImage.getWidth() - offset; c++) {
+            for (int r = offset; r < inputImage.getHeight() - offset; r++) {
+                int sumRed = 0;
+                int sumGreen = 0;
+                int sumBlue = 0;
+                for (int dx = -offset; dx <= +offset; dx++) {
+                    for (int dy = -offset; dy <= +offset; dy++) {
+                        int newc = c + dx;
+                        int newr = r + dy;
+
+                        int newrgb = inputImage.getRGB(newc, newr);
+                        int newrr = (newrgb >> 16) & 0xFF;
+                        int newgg = (newrgb >> 8) & 0xFF;
+                        int newbb = (newrgb >> 0) & 0xFF;
+
+                        int multipliedValue;
+                        multipliedValue = kernel[dy + offset][dx + offset] * newrr;
+                        sumRed += multipliedValue;
+                        multipliedValue = kernel[dy + offset][dx + offset] * newgg;
+                        sumGreen += multipliedValue;
+                        multipliedValue = kernel[dy + offset][dx + offset] * newbb;
+                        sumBlue += multipliedValue;
+                    }
+                }
+
+                sumRed /= kernelSum;
+                sumGreen /= kernelSum;
+                sumBlue /= kernelSum;
+
+                if (sumRed < 0) {
+                    sumRed = 0;
+                }
+                if (sumRed > 255) {
+                    sumRed = 255;
+                }
+                if (sumGreen < 0) {
+                    sumGreen = 0;
+                }
+                if (sumGreen > 255) {
+                    sumGreen = 255;
+                }
+                if (sumBlue < 0) {
+                    sumBlue = 0;
+                }
+                if (sumBlue > 255) {
+                    sumBlue = 255;
+                }
+
+                int rgb = (sumRed << 16) | (sumGreen << 8) | (sumBlue);
+                outputImage.setRGB(c, r, rgb);
+            }
+        }
+
+        return outputImage;
     }
 
     @FXML
@@ -242,50 +328,81 @@ public class MainUIController implements Initializable {
         displayImage(outputImage, rightPane);
     }
 
-    /*
     @FXML
-    private void handleBoxBlurAction(ActionEvent event) {
-        outputImage = new BufferedImage(inputImage.getWidth(), inputImage.getHeight(),
-                inputImage.getType());
-
-        int blurKernel[][] = {
-            {1, 1, 1},
-            {1, 1, 1},
-            {1, 1, 1}
+    private void handleCannyAction(ActionEvent event) {
+        // kernels
+        int gaussianKernel[][] = {
+            {1, 2, 1},
+            {2, 4, 2},
+            {1, 2, 1}
         };
+        int sobelGx[][] = {
+            {-1, 0, +1},
+            {-2, 0, +2},
+            {-1, 0, +1}
+        };
+        int sobelGy[][] = {
+            {-1, -2, -1},
+            {0, 0, 0},
+            {+1, +2, +1}
+        };
+        BufferedImage M = null;
+        double alpha[][] = null;
 
-        int offset = blurKernel.length / 2;
+        outputImage = new BufferedImage(inputImage.getWidth(), inputImage.getHeight(), inputImage.getType());
+        // step 0
+        // RGB -> Gray Scale
+        outputImage = toGrayScale(outputImage);
 
-        for (int c = offset; c < inputImage.getWidth() - offset; c++) {
-            for (int r = offset; r < inputImage.getHeight() - offset; r++) {
-                int sumRed = 0;
-                int sumGreen = 0;
-                int sumBlue = 0;
-                for (int dx = -offset; dx <= +offset; dx++) {
-                    for (int dy = -offset; dy <= +offset; dy++) {
-                        int newc = c + dx;
-                        int newr = r + dy;
+        // step 1
+        // Smooth the input image with a Gaussian filter
+        outputImage = applyKernel(outputImage, gaussianKernel);
 
-                        int newrgb = inputImage.getRGB(newc, newr);
-                        int newrr = (newrgb >> 16) & 0xFF;
-                        int newgg = (newrgb >> 8) & 0xFF;
-                        int newbb = (newrgb >> 0) & 0xFF;
-                        
-                        int multipliedValue;
-                        multipliedValue = blurKernel[dy + offset][dx + offset] * newrr;
-                        sumRed += multipliedValue;
-                        multipliedValue = blurKernel[dy + offset][dx + offset] * newgg;
-                        sumGreen += multipliedValue;
-                        multipliedValue = blurKernel[dy + offset][dx + offset] * newbb;
-                        sumBlue += multipliedValue;
-                    }
+        BufferedImage gx = applyKernel(outputImage, sobelGx);
+        BufferedImage gy = applyKernel(outputImage, sobelGy);
+
+        /*
+        // DEBUGGING
+        int maxVal = Integer.MIN_VALUE;
+        int minVal = Integer.MAX_VALUE;
+        int avgVal = 0;
+        int count = 0;
+        for (int r = 0; r < gx.getHeight(); r++)
+            for (int c = 0; c < gx.getWidth(); c++) {
+                int value = gx.getRGB(c, r) & 0xFF;
+                if (value > maxVal) maxVal = value;
+                if (value < minVal) minVal = value;
+                avgVal += value;
+            }
+        
+        System.out.printf("min %d, max %d, avg %d count %d\n", minVal, maxVal, avgVal, count);
+        */        
+
+//        displayImage(gx, leftPane);
+//        displayImage(gy, rightPane);
+        calculateMagnitude(M, alpha, gx, gy);
+
+//        displayImage(M, rightPane);
+    }
+
+    private void calculateMagnitude(BufferedImage M, double[][] alpha, BufferedImage gx, BufferedImage gy) {
+        M = new BufferedImage(inputImage.getWidth(), inputImage.getHeight(), inputImage.getType());
+        alpha = new double[inputImage.getHeight()][inputImage.getWidth()];
+
+        for (int c = 0; c < inputImage.getWidth(); c++) {
+            for (int r = 0; r < inputImage.getHeight(); r++) {
+                int valueGx = gx.getRGB(c, r) & 0xFF;
+                int valueGy = gy.getRGB(c, r) & 0xFF;
+                int valueM = (int) (Math.sqrt(valueGx * valueGx + valueGy * valueGy));
+                if (valueM > 255) {
+                    valueM = 255;
                 }
-                // DIVIDE the sum values by 9
-                // pack the new RGBs into one integer
-                // put the integer in the new image
+                valueM = (valueM << 16) | (valueM << 8) | (valueM << 0);
+                M.setRGB(c, r, valueM);
             }
         }
-        displayImage(outputImage, rightPane);
+        M = myThreshold(M, 1);
+        System.out.println("Displaying M");
+        displayImage(M, rightPane);
     }
-     */
 }
