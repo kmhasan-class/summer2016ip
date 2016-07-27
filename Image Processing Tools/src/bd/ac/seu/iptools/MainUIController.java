@@ -75,11 +75,35 @@ public class MainUIController implements Initializable {
         }
     }
 
+    private BufferedImage toBufferedImage(double grayPixels[][]) {
+        BufferedImage image = new BufferedImage(grayPixels[0].length, grayPixels.length, BufferedImage.TYPE_3BYTE_BGR);
+        for (int r = 0; r < grayPixels.length; r++) {
+            for (int c = 0; c < grayPixels[r].length; c++) {
+                int value = (int) grayPixels[r][c];
+                value = (value << 0) | (value << 8) | (value << 16);
+                image.setRGB(c, r, value);
+            }
+        }
+        return image;
+    }
+
+    private BufferedImage toBufferedImage(int grayPixels[][]) {
+        BufferedImage image = new BufferedImage(grayPixels[0].length, grayPixels.length, BufferedImage.TYPE_3BYTE_BGR);
+        for (int r = 0; r < grayPixels.length; r++) {
+            for (int c = 0; c < grayPixels[r].length; c++) {
+                int value = grayPixels[r][c];
+                value = (value << 0) | (value << 8) | (value << 16);
+                image.setRGB(c, r, value);
+            }
+        }
+        return image;
+    }
+
     private BufferedImage toGrayScale(BufferedImage rgbImage) {
-        BufferedImage grayImage = new BufferedImage(inputImage.getWidth(), inputImage.getHeight(), BufferedImage.TYPE_BYTE_GRAY);
-        for (int c = 0; c < inputImage.getWidth(); c++) {
-            for (int r = 0; r < inputImage.getHeight(); r++) {
-                int rgb = inputImage.getRGB(c, r);
+        BufferedImage grayImage = new BufferedImage(rgbImage.getWidth(), rgbImage.getHeight(), BufferedImage.TYPE_BYTE_GRAY);
+        for (int c = 0; c < rgbImage.getWidth(); c++) {
+            for (int r = 0; r < rgbImage.getHeight(); r++) {
+                int rgb = rgbImage.getRGB(c, r);
                 int rr = (rgb >> 16) & 0xFF;
                 int gg = (rgb >> 8) & 0xFF;
                 int bb = (rgb >> 0) & 0xFF;
@@ -90,8 +114,25 @@ public class MainUIController implements Initializable {
                 grayImage.setRGB(c, r, rgb);
             }
         }
-        //grayImage = otsusThreshold(grayImage);
+
         return grayImage;
+    }
+
+    private double[][] toGrayScaleArray(BufferedImage rgbImage) {
+        double pixels[][] = new double[rgbImage.getHeight()][rgbImage.getWidth()];
+        for (int c = 0; c < rgbImage.getWidth(); c++) {
+            for (int r = 0; r < rgbImage.getHeight(); r++) {
+                int rgb = rgbImage.getRGB(c, r);
+                int rr = (rgb >> 16) & 0xFF;
+                int gg = (rgb >> 8) & 0xFF;
+                int bb = (rgb >> 0) & 0xFF;
+
+                double intensity = rr * 0.72 + gg * 0.21 + bb * 0.07;
+                pixels[r][c] = intensity;
+            }
+        }
+
+        return pixels;
     }
 
     public BufferedImage otsusThreshold(BufferedImage grayscaleImage) {
@@ -199,6 +240,34 @@ public class MainUIController implements Initializable {
         anchorPane.getChildren().add(imageView);
     }
 
+    private double[][] applyKernelArray(double grayPixels[][], int kernel[][]) {
+        double outputPixels[][] = new double[grayPixels.length][grayPixels[0].length];
+
+        int offset = kernel.length / 2;
+        int kernelSum = 0;
+        for (int r = 0; r < kernel.length; r++) {
+            for (int c = 0; c < kernel[r].length; c++) {
+                kernelSum += Math.abs(kernel[r][c]);
+            }
+        }
+
+        for (int c = offset; c < grayPixels[0].length - offset; c++) {
+            for (int r = offset; r < grayPixels.length - offset; r++) {
+                double sum = 0;
+                for (int dx = -offset; dx <= +offset; dx++) {
+                    for (int dy = -offset; dy <= +offset; dy++) {
+                        sum += kernel[dy + offset][dx + offset] * grayPixels[r + dy][c + dx];
+                    }
+                }
+
+                sum /= kernelSum;
+                outputPixels[r][c] = sum;
+            }
+        }
+
+        return outputPixels;
+    }
+
     private BufferedImage applyKernel(BufferedImage image, int kernel[][]) {
         BufferedImage outputImage;
         outputImage = new BufferedImage(inputImage.getWidth(), inputImage.getHeight(), inputImage.getType());
@@ -275,15 +344,9 @@ public class MainUIController implements Initializable {
         outputImage = new BufferedImage(inputImage.getWidth(), inputImage.getHeight(), inputImage.getType());
 
         int blurKernel[][] = {
-            /*
-            {-1, 0, +1},
-            {-1, 0, +1},
-            {-1, 0, +1}
-             */
-            {-1, -1, -1},
-            {0, 0, 0},
-            {+1, +1, +1}
-
+            {+1, +2, +1},
+            {+2, +4, +2},
+            {+1, +2, +1}
         };
 
         int offset = blurKernel.length / 2;
@@ -312,11 +375,6 @@ public class MainUIController implements Initializable {
                         sumBlue += multipliedValue;
                     }
                 }
-                /*
-                sumRed /= 982;
-                sumGreen /= 982;
-                sumBlue /= 982;
-                 */
                 int rgb = (sumRed << 16) | (sumGreen << 8) | (sumBlue);
                 outputImage.setRGB(c, r, rgb);
                 // DIVIDE the sum values by 9
@@ -328,6 +386,150 @@ public class MainUIController implements Initializable {
         displayImage(outputImage, rightPane);
     }
 
+    @FXML
+    private void handleCannyAction(ActionEvent event) {
+        // kernels
+        int gaussianKernel[][] = {
+            {1, 2, 1},
+            {2, 4, 2},
+            {1, 2, 1}
+        };
+        int sobelGx[][] = {
+            {-1, 0, +1},
+            {-2, 0, +2},
+            {-1, 0, +1}
+        };
+        int sobelGy[][] = {
+            {-1, -2, -1},
+            {0, 0, 0},
+            {+1, +2, +1}
+        };
+
+        double grayPixels[][] = null;
+        double blurPixels[][] = null;
+        double gx[][] = null;
+        double gy[][] = null;
+        double gn[][] = null;
+        int gnh[][] = null;
+        int gnl[][] = null;
+        int output[][] = null;
+        double M[][] = null;
+        double alpha[][] = null;
+        double tl; // low threshold
+        double th; // high threshold
+
+        // step 0
+        // RGB -> Gray Scale
+        grayPixels = toGrayScaleArray(inputImage);
+
+        // step 1
+        // Smooth the input image with a Gaussian filter
+        blurPixels = applyKernelArray(grayPixels, gaussianKernel);
+
+        // step 2
+        // Calculate gradient vector components
+        gx = applyKernelArray(blurPixels, sobelGx);
+        gy = applyKernelArray(blurPixels, sobelGy);
+
+        // step 2 and 3
+        // Calculate non maxima suppressed image
+        M = new double[gx.length][gx[0].length];
+        alpha = new double[gx.length][gx[0].length];
+        gn = new double[gx.length][gx[0].length];
+        gnl = new int[gx.length][gx[0].length];
+        gnh = new int[gx.length][gx[0].length];
+        output = new int[gx.length][gx[0].length];
+        double minM = Double.MAX_VALUE;
+        double maxM = Double.MIN_VALUE;
+        for (int r = 1; r < gx.length - 1; r++) {
+            for (int c = 1; c < gx[0].length - 1; c++) {
+                M[r][c] = Math.sqrt(gx[r][c] * gx[r][c] + gy[r][c] * gy[r][c]);
+                alpha[r][c] = Math.atan(gy[r][c] / gx[r][c]);
+                if (gx[r][c] != 0.0) {
+                    if (alpha[r][c] < 0) {
+                        alpha[r][c] += Math.PI / 2;
+                    }
+                } else {
+                    alpha[r][c] = Math.PI / 2;
+                }
+                minM = Math.min(minM, M[r][c]);
+                maxM = Math.max(maxM, M[r][c]);
+                if ((alpha[r][c] >= -Math.PI / 8 * 1 && alpha[r][c] < Math.PI / 8 * 1)
+                        || (alpha[r][c] >= Math.PI / 8 * 7 && alpha[r][c] < Math.PI / 8 * 9)) {
+                    if (M[r][c] < M[r][c - 1] || M[r][c] < M[r][c + 1]) {
+                        gn[r][c] = 0;
+                    } else {
+                        gn[r][c] = M[r][c];
+                    }
+                } else if (alpha[r][c] >= Math.PI / 8 * 1 && alpha[r][c] < Math.PI / 8 * 3) {
+                    if (M[r][c] < M[r - 1][c + 1] || M[r][c] < M[r + 1][c - 1]) {
+                        gn[r][c] = 0;
+                    } else {
+                        gn[r][c] = M[r][c];
+                    }
+                } else if (alpha[r][c] >= Math.PI / 8 * 3 && alpha[r][c] < Math.PI / 8 * 5) {
+                    if (M[r][c] < M[r - 1][c] || M[r][c] < M[r + 1][c]) {
+                        gn[r][c] = 0;
+                    } else {
+                        gn[r][c] = M[r][c];
+                    }
+                } else if (alpha[r][c] >= Math.PI / 8 * 5 && alpha[r][c] < Math.PI / 8 * 7) {
+                    if (M[r][c] < M[r - 1][c - 1] || M[r][c] < M[r + 1][c + 1]) {
+                        gn[r][c] = 0;
+                    } else {
+                        gn[r][c] = M[r][c];
+                    }
+                } else {
+                    ;
+                }
+            }
+        }
+
+//        tl = minM + (maxM - minM) / 4.0;
+//        th = minM + (maxM - minM) / 4.0 * 3.0;
+        // need to add slider so that users can pick tl and th values
+        tl = 5;
+        th = 20;
+
+        for (int r = 1; r < gn.length - 1; r++) {
+            for (int c = 1; c < gn[0].length - 1; c++) {
+                if (gn[r][c] > tl) {
+                    gnl[r][c] = 0xFF;
+                } else {
+                    gnl[r][c] = 0;
+                }
+                if (gn[r][c] > th) {
+                    gnh[r][c] = 0xFF;
+                } else {
+                    gnh[r][c] = 0;
+                }
+
+                // connectivity analysis
+                for (int dr = -1; dr <= +1; dr++) {
+                    for (int dc = -1; dc <= +1; dc++) {
+                        if (gnh[r][c] > 0) {
+                            output[r][c] = 255;
+                            if (gnl[r + dr][c + dc] > 0)
+                                output[r][c] = 255;
+                        }
+                    }
+                }
+            }
+        }
+
+        outputImage = toBufferedImage(output);
+        statusLabel.setText(String.format("M %.2f %.2f Thresholds %.2f %.2f", minM, maxM, tl, th));
+        /*
+        BufferedImage gx = applyKernel(outputImage, sobelGx);
+        BufferedImage gy = applyKernel(outputImage, sobelGy);
+
+        calculateMagnitude(M, alpha, gx, gy);
+         */
+        //displayImage(inputImage, leftPane);
+        displayImage(outputImage, rightPane);
+    }
+
+    /*
     @FXML
     private void handleCannyAction(ActionEvent event) {
         // kernels
@@ -361,30 +563,9 @@ public class MainUIController implements Initializable {
         BufferedImage gx = applyKernel(outputImage, sobelGx);
         BufferedImage gy = applyKernel(outputImage, sobelGy);
 
-        /*
-        // DEBUGGING
-        int maxVal = Integer.MIN_VALUE;
-        int minVal = Integer.MAX_VALUE;
-        int avgVal = 0;
-        int count = 0;
-        for (int r = 0; r < gx.getHeight(); r++)
-            for (int c = 0; c < gx.getWidth(); c++) {
-                int value = gx.getRGB(c, r) & 0xFF;
-                if (value > maxVal) maxVal = value;
-                if (value < minVal) minVal = value;
-                avgVal += value;
-            }
-        
-        System.out.printf("min %d, max %d, avg %d count %d\n", minVal, maxVal, avgVal, count);
-        */        
-
-//        displayImage(gx, leftPane);
-//        displayImage(gy, rightPane);
         calculateMagnitude(M, alpha, gx, gy);
-
-//        displayImage(M, rightPane);
     }
-
+     */
     private void calculateMagnitude(BufferedImage M, double[][] alpha, BufferedImage gx, BufferedImage gy) {
         M = new BufferedImage(inputImage.getWidth(), inputImage.getHeight(), inputImage.getType());
         alpha = new double[inputImage.getHeight()][inputImage.getWidth()];
@@ -404,5 +585,12 @@ public class MainUIController implements Initializable {
         M = myThreshold(M, 1);
         System.out.println("Displaying M");
         displayImage(M, rightPane);
+    }
+
+    @FXML
+    private void handleTestOpAction(ActionEvent event) {
+        double pixels[][] = toGrayScaleArray(inputImage);
+        BufferedImage image = toBufferedImage(pixels);
+        displayImage(image, rightPane);
     }
 }

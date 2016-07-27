@@ -26,6 +26,7 @@
                       <MenuItem mnemonicParsing="false" onAction="#handleRGBtoGrayscaleAction" text="RGB to Grayscale" />
                         <MenuItem mnemonicParsing="false" onAction="#handleRotateClockwiseAction" text="Rotate Clockwise" />
                         <MenuItem mnemonicParsing="false" onAction="#handleCannyAction" text="Canny" />
+                        <MenuItem mnemonicParsing="false" onAction="#handleTestOpAction" text="Test Op" />
                     </items>
                   </Menu>
                 <Menu mnemonicParsing="false" text="Help">
